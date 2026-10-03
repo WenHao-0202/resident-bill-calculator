@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>住戶水電費分攤計算系統</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+            water: { 50: '#ecfeff', 100: '#cffaff', 500: '#06b6d4', 600: '#0891b2', 700: '#0e7490' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @media print {
+      body { background: white !important; font-size: 12pt; }
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+      .card { border: 1px solid #ccc !important; box-shadow: none !important; }
+    }
+    .print-only { display: none; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen pb-12">
+
+  <!-- Header -->
+  <header class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white shadow-lg no-print">
+    <div class="max-w-5xl mx-auto px-4 py-6 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="p-3 bg-blue-600 rounded-xl shadow-inner">
+          <i class="fa-solid fa-calculator text-2xl text-white"></i>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">住戶水電費分攤系統</h1>
+          <p class="text-xs text-slate-400 mt-0.5">適用於 5F、6F-1、6F-2 費用公平分攤與計算</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 mt-6">
+    <!-- 頁籤導覽 -->
+    <div class="flex border-b border-slate-300 mb-6 bg-white rounded-t-xl shadow-sm p-1.5 gap-2 no-print">
+      <button onclick="switchTab('elec')" id="tab-elec" class="tab-btn flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 bg-blue-600 text-white shadow-sm">
+        <i class="fa-solid fa-bolt text-yellow-400"></i> 第一頁：電費計算
+      </button>
+      <button onclick="switchTab('water')" id="tab-water" class="tab-btn flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 text-slate-600 hover:bg-slate-100">
+        <i class="fa-solid fa-droplet text-cyan-500"></i> 第二頁：水費分攤
+      </button>
+      <button onclick="switchTab('summary')" id="tab-summary" class="tab-btn flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 text-slate-600 hover:bg-slate-100">
+        <i class="fa-solid fa-file-invoice-dollar text-emerald-500"></i> 當期總費用彙整
+      </button>
+    </div>
+
+    <!-- TAB 1: 電費計算 -->
+    <div id="content-elec" class="tab-content block space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- 電費輸入區 -->
+        <div class="lg:col-span-5 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <h2 class="text-lg font-bold text-slate-800 border-b pb-3 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-sliders text-blue-600"></i> 電費基本參數設定
+          </h2>
+          <form id="elecForm" class="space-y-4" onsubmit="event.preventDefault(); calculateElec();">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">應繳總金額</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">$</span>
+                <input type="number" id="a1" value="5000" class="w-full pl-8 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 font-medium" required>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">當期平均電費單價 $/度</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">$</span>
+                <input type="number" step="0.01" id="a2" value="4.5" class="w-full pl-8 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 font-medium" required>
+              </div>
+            </div>
+
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              <span class="text-xs font-bold text-blue-700 block border-b border-slate-200 pb-1">6F-1 電錶度數</span>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] text-slate-500">本期電錶</label>
+                  <input type="number" id="y1" value="1500" class="w-full px-2 py-1.5 border rounded focus:ring-2 focus:ring-blue-500 text-sm" required>
+                </div>
+                <div>
+                  <label class="block text-[11px] text-slate-500">前期電錶</label>
+                  <input type="number" id="y2" value="1200" class="w-full px-2 py-1.5 border rounded focus:ring-2 focus:ring-blue-500 text-sm" required>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              <span class="text-xs font-bold text-blue-700 block border-b border-slate-200 pb-1">6F-2 電錶度數</span>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] text-slate-500">本期電錶</label>
+                  <input type="number" id="z1" value="2300" class="w-full px-2 py-1.5 border rounded focus:ring-2 focus:ring-blue-500 text-sm" required>
+                </div>
+                <div>
+                  <label class="block text-[11px] text-slate-500">前期電錶</label>
+                  <input type="number" id="z2" value="1900" class="w-full px-2 py-1.5 border rounded focus:ring-2 focus:ring-blue-500 text-sm" required>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-colors flex items-center justify-center gap-2">
+              <i class="fa-solid fa-calculator"></i> 計算電費分攤
+            </button>
+          </form>
+        </div>
+
+        <!-- 電費結果 Display -->
+        <div class="lg:col-span-7 space-y-4">
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 class="text-lg font-bold text-slate-800 border-b pb-3 mb-4 flex items-center justify-between">
+              <span><i class="fa-solid fa-receipt text-blue-600"></i> 電費計算結果</span>
+              <span class="text-xs font-normal text-slate-500">公式：(本期 - 前期) × 當期單價</span>
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+                <span class="text-xs text-indigo-600 font-semibold block mb-1">6F-1 應繳金額</span>
+                <div class="text-2xl font-black text-indigo-900" id="res-6f1-elec">$0</div>
+                <div class="text-[11px] text-indigo-600/80 mt-1" id="sub-6f1-elec">用電: 0 度</div>
+              </div>
+
+              <div class="p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+                <span class="text-xs text-indigo-600 font-semibold block mb-1">6F-2 應繳金額</span>
+                <div class="text-2xl font-black text-indigo-900" id="res-6f2-elec">$0</div>
+                <div class="text-[11px] text-indigo-600/80 mt-1" id="sub-6f2-elec">用電: 0 度</div>
+              </div>
+
+              <div class="p-4 bg-emerald-50 border border-emerald-100 rounded-xl">
+                <span class="text-xs text-emerald-700 font-semibold block mb-1">5F 應繳金額 (扣除額)</span>
+                <div class="text-2xl font-black text-emerald-900" id="res-5f-elec">$0</div>
+                <div class="text-[11px] text-emerald-700/80 mt-1">總額 - 6F1 - 6F2</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: 水費計算 -->
+    <div id="content-water" class="tab-content hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- 水費輸入區 -->
+        <div class="lg:col-span-5 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <h2 class="text-lg font-bold text-slate-800 border-b pb-3 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-droplet text-cyan-500"></i> 水費分攤參數設定
+          </h2>
+          <form id="waterForm" class="space-y-4" onsubmit="event.preventDefault(); calculateWater();">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">總水費 (y)</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">$</span>
+                <input type="number" id="water_y" value="1000" class="w-full pl-8 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none font-medium" required>
+              </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              <span class="text-xs font-bold text-slate-700 block border-b border-slate-200 pb-1">住戶人數 / 分攤權重設定</span>
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">5F </label>
+                  <input type="number" id="water_x1" value="3" class="w-full px-2 py-1.5 border rounded focus:ring-2 focus:ring-cyan-500 text-sm text-center" required>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">6F-1 </label>
+                  <input type="number" id="water_x2" value="1" class="w-full px-2 py-1.5 border rounded focus:ring-2 focus:ring-cyan-500 text-sm text-center" required>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">6F-2 </label>
+                  <input type="number" id="water_x3" value="1" class="w-full px-2 py-1.5 border rounded focus:ring-2 focus:ring-cyan-500 text-sm text-center" required>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="w-full py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-lg shadow transition-colors flex items-center justify-center gap-2">
+              <i class="fa-solid fa-calculator"></i> 計算水費分攤
+            </button>
+          </form>
+        </div>
+
+        <!-- 水費結果 Display -->
+        <div class="lg:col-span-7 space-y-4">
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 class="text-lg font-bold text-slate-800 border-b pb-3 mb-4 flex items-center justify-between">
+              <span><i class="fa-solid fa-receipt text-cyan-600"></i> 水費分攤結果</span>
+              <span class="text-xs font-normal text-slate-500">總權重：<span id="water-total-weight" class="font-bold text-cyan-700">5</span> 份</span>
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="p-4 bg-cyan-50 border border-cyan-100 rounded-xl">
+                <span class="text-xs text-cyan-700 font-semibold block mb-1">5F 水費</span>
+                <div class="text-2xl font-black text-cyan-900" id="res-5f-water">$0</div>
+                <div class="text-[11px] text-cyan-700/80 mt-1" id="sub-5f-water">佔比 3/5</div>
+              </div>
+
+              <div class="p-4 bg-cyan-50 border border-cyan-100 rounded-xl">
+                <span class="text-xs text-cyan-700 font-semibold block mb-1">6F-1 水費</span>
+                <div class="text-2xl font-black text-cyan-900" id="res-6f1-water">$0</div>
+                <div class="text-[11px] text-cyan-700/80 mt-1" id="sub-6f1-water">佔比 1/5</div>
+              </div>
+
+              <div class="p-4 bg-cyan-50 border border-cyan-100 rounded-xl">
+                <span class="text-xs text-cyan-700 font-semibold block mb-1">6F-2 水費</span>
+                <div class="text-2xl font-black text-cyan-900" id="res-6f2-water">$0</div>
+                <div class="text-[11px] text-cyan-700/80 mt-1" id="sub-6f2-water">佔比 1/5</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: 總彙整 -->
+    <div id="content-summary" class="tab-content hidden space-y-6">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 mb-4 gap-2">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> 當期水電費費用總繳納明細
+            </h2>
+          </div>
+          <button onclick="window.print()" class="no-print bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-slate-700 transition flex items-center gap-2">
+            <i class="fa-solid fa-print"></i> 列印繳費單
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-100 border-b border-slate-200 text-xs font-bold text-slate-600">
+                <th class="p-3">住戶名稱</th>
+                <th class="p-3">電費應繳</th>
+                <th class="p-3">水費應繳</th>
+                <th class="p-3 text-right">總計應繳金額</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 text-sm">
+              <tr>
+                <td class="p-3 font-bold text-slate-700">5F 住戶</td>
+                <td class="p-3 text-blue-600" id="sum-5f-elec">$0</td>
+                <td class="p-3 text-cyan-600" id="sum-5f-water">$0</td>
+                <td class="p-3 text-right font-black text-emerald-600 text-lg" id="sum-5f-total">$0</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-bold text-slate-700">6F-1 住戶</td>
+                <td class="p-3 text-blue-600" id="sum-6f1-elec">$0</td>
+                <td class="p-3 text-cyan-600" id="sum-6f1-water">$0</td>
+                <td class="p-3 text-right font-black text-emerald-600 text-lg" id="sum-6f1-total">$0</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-bold text-slate-700">6F-2 住戶</td>
+                <td class="p-3 text-blue-600" id="sum-6f2-elec">$0</td>
+                <td class="p-3 text-cyan-600" id="sum-6f2-water">$0</td>
+                <td class="p-3 text-right font-black text-emerald-600 text-lg" id="sum-6f2-total">$0</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let currentTab = 'elec';
+    let elecData = { f5: 0, f61: 0, f62: 0 };
+    let waterData = { f5: 0, f61: 0, f62: 0 };
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
+        btn.classList.add('text-slate-600', 'hover:bg-slate-100');
+      });
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+
+      const activeBtn = document.getElementById(`tab-${tab}`);
+      activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+      activeBtn.classList.remove('text-slate-600', 'hover:bg-slate-100');
+
+      document.getElementById(`content-${tab}`).classList.remove('hidden');
+      if(tab === 'summary') updateSummary();
+    }
+
+    function calculateElec() {
+      const a1 = parseFloat(document.getElementById('a1').value) || 0;
+      const a2 = parseFloat(document.getElementById('a2').value) || 0;
+      const y1 = parseFloat(document.getElementById('y1').value) || 0;
+      const y2 = parseFloat(document.getElementById('y2').value) || 0;
+      const z1 = parseFloat(document.getElementById('z1').value) || 0;
+      const z2 = parseFloat(document.getElementById('z2').value) || 0;
+
+      const deg6f1 = Math.max(0, y1 - y2);
+      const deg6f2 = Math.max(0, z1 - z2);
+
+      const pay6f1 = Math.round(deg6f1 * a2);
+      const pay6f2 = Math.round(deg6f2 * a2);
+      const pay5f = Math.round(a1 - pay6f1 - pay6f2);
+
+      elecData = { f5: pay5f, f61: pay6f1, f62: pay6f2 };
+
+      document.getElementById('res-6f1-elec').innerText = `$${pay6f1.toLocaleString()}`;
+      document.getElementById('sub-6f1-elec').innerText = `用電: ${deg6f1} 度`;
+
+      document.getElementById('res-6f2-elec').innerText = `$${pay6f2.toLocaleString()}`;
+      document.getElementById('sub-6f2-elec').innerText = `用電: ${deg6f2} 度`;
+
+      document.getElementById('res-5f-elec').innerText = `$${pay5f.toLocaleString()}`;
+      updateSummary();
+    }
+
+    function calculateWater() {
+      const y = parseFloat(document.getElementById('water_y').value) || 0;
+      const x1 = parseFloat(document.getElementById('water_x1').value) || 0;
+      const x2 = parseFloat(document.getElementById('water_x2').value) || 0;
+      const x3 = parseFloat(document.getElementById('water_x3').value) || 0;
+
+      const totalX = x1 + x2 + x3;
+      document.getElementById('water-total-weight').innerText = totalX;
+
+      if(totalX <= 0) return;
+
+      const pay5f = Math.round((y / totalX) * x1);
+      const pay6f1 = Math.round((y / totalX) * x2);
+      const pay6f2 = Math.round((y / totalX) * x3);
+
+      waterData = { f5: pay5f, f61: pay6f1, f62: pay6f2 };
+
+      document.getElementById('res-5f-water').innerText = `$${pay5f.toLocaleString()}`;
+      document.getElementById('sub-5f-water').innerText = `佔比 ${x1}/${totalX}`;
+
+      document.getElementById('res-6f1-water').innerText = `$${pay6f1.toLocaleString()}`;
+      document.getElementById('sub-6f1-water').innerText = `佔比 ${x2}/${totalX}`;
+
+      document.getElementById('res-6f2-water').innerText = `$${pay6f2.toLocaleString()}`;
+      document.getElementById('sub-6f2-water').innerText = `佔比 ${x3}/${totalX}`;
+      updateSummary();
+    }
+
+    function updateSummary() {
+      document.getElementById('sum-5f-elec').innerText = `$${elecData.f5.toLocaleString()}`;
+      document.getElementById('sum-5f-water').innerText = `$${waterData.f5.toLocaleString()}`;
+      document.getElementById('sum-5f-total').innerText = `$${(elecData.f5 + waterData.f5).toLocaleString()}`;
+
+      document.getElementById('sum-6f1-elec').innerText = `$${elecData.f61.toLocaleString()}`;
+      document.getElementById('sum-6f1-water').innerText = `$${waterData.f61.toLocaleString()}`;
+      document.getElementById('sum-6f1-total').innerText = `$${(elecData.f61 + waterData.f61).toLocaleString()}`;
+
+      document.getElementById('sum-6f2-elec').innerText = `$${elecData.f62.toLocaleString()}`;
+      document.getElementById('sum-6f2-water').innerText = `$${waterData.f62.toLocaleString()}`;
+      document.getElementById('sum-6f2-total').innerText = `$${(elecData.f62 + waterData.f62).toLocaleString()}`;
+    }
+
+    window.onload = function() {
+      calculateElec();
+      calculateWater();
+    };
+  </script>
+</body>
+</html>
